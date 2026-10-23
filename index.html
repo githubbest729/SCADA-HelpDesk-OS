@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SCADA HelpDesk OS — Al Gurg Automation &amp; Controls</title>
+<meta name="description" content="Industrial SCADA ticketing and remote-diagnostic helpdesk for Al Gurg Automation and Controls, Dubai U.A.E. Works 100% offline.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SCADA Desk">
+<meta name="theme-color" content="#0a192f">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <img src="icons/icon-96.png" alt="" width="34" height="34">
+    <div>
+      <div class="brand-title">SCADA HelpDesk OS</div>
+      <div class="brand-sub">Al Gurg Automation &amp; Controls — Dubai, U.A.E. · SCADA Engineer</div>
+    </div>
+  </div>
+  <div class="status-row">
+    <div class="pill" title="UAE Gulf Standard Time (UTC+4)"><span class="lbl">GST</span> <span id="gstClock">--:--:--</span></div>
+    <div class="pill" id="netPill"><span class="dot" id="netDot"></span><span id="netText">Online</span></div>
+    <div class="pill" id="swPill"><span class="dot warn" id="swDot"></span><span id="swText">SW: starting</span></div>
+    <div class="pill" id="storagePill" title="Click to open the Storage Vault">Storage: -- MB / Multi-Year Ready</div>
+    <button class="btn small accent" id="installBtn" hidden>Install App</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs" role="tablist">
+  <button class="tab active" data-view="command" role="tab">Command Center</button>
+  <button class="tab" data-view="diag" role="tab">Remote Diagnostics</button>
+  <button class="tab" data-view="kb" role="tab">SOP &amp; Training</button>
+  <button class="tab" data-view="sites" role="tab">Sites · BOM · QHSE</button>
+  <button class="tab" data-view="vault" role="tab">Storage Vault</button>
+</nav>
+
+<main>
+<!-- ============ COMMAND CENTER ============ -->
+<section class="view active" id="view-command">
+  <div class="kpis" id="kpis"></div>
+  <div class="toolbar">
+    <input type="search" id="tSearch" placeholder="Search ticket #, title, site, protocol…" aria-label="Search tickets">
+    <select id="tStatus" aria-label="Status filter"><option value="">All status</option><option>Open</option><option>In Progress</option><option>Pending Client</option><option>Escalated</option><option>Resolved</option><option>Closed</option></select>
+    <select id="tPriority" aria-label="Priority filter"><option value="">All priority</option><option>P1</option><option>P2</option><option>P3</option><option>P4</option></select>
+    <select id="tProtocol" aria-label="Protocol filter"><option value="">All protocols</option><option>OPC UA</option><option>OPC DA</option><option>Modbus TCP</option><option>Modbus RTU</option><option>Siemens S7</option><option>EtherNet/IP</option><option>Wonderware</option><option>SQL/Historian</option></select>
+    <div class="seg"><button id="viewTable" class="active">Table</button><button id="viewKanban">Kanban</button></div>
+    <button class="btn accent" id="newTicketBtn">+ New Ticket</button>
+  </div>
+  <div id="ticketTableWrap"></div>
+  <div id="ticketKanban" class="kanban" hidden></div>
+  <div class="pager"><button class="btn small" id="pgPrev">‹ Prev</button><span id="pgInfo"></span><button class="btn small" id="pgNext">Next ›</button></div>
+</section>
+
+<!-- ============ DIAGNOSTICS ============ -->
+<section class="view" id="view-diag">
+  <div class="card attach-bar">
+    <label>Bind result to ticket
+      <select id="attachTicket"></select>
+    </label>
+    <span class="hint">Run a tool below, then use “Attach Diagnostic Result to Ticket”.</span>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>OPC DA / UA Quality Decoder</h3>
+      <div class="row"><label>Quality code (hex)<input id="opcHex" value="0x00C0" spellcheck="false"></label><button class="btn small" id="opcDecodeBtn">Decode</button></div>
+      <div class="row"><label>Quick picks<select id="opcPick"><option value="0x00C0">0x00C0 Good</option><option value="0x0000">0x0000 Bad</option><option value="0x0018">0x0018 Comm Failure</option><option value="0x0014">0x0014 Last Known Value</option><option value="0x0040">0x0040 Uncertain</option><option value="0x0044">0x0044 Last Usable Value</option><option value="0x0050">0x0050 Sensor Not Accurate</option><option value="0x00D8">0x00D8 Good, Local Override</option><option value="0x80000000">0x80000000 OPC UA Bad (generic)</option></select></label></div>
+      <div id="opcOut" class="out"></div>
+      <div class="row"><label>Endpoint / Host<input id="opcEndpoint" value="opc.tcp://10.10.20.15:4840" spellcheck="false"></label><button class="btn small" id="opcEndpointBtn">Check Syntax</button></div>
+      <div id="opcEndpointOut" class="out"></div>
+      <button class="btn accent small" data-attach="opc">Attach Diagnostic Result to Ticket</button>
+    </div>
+    <div class="card">
+      <h3>Modbus TCP / RTU Frame Builder &amp; CRC-16 / LRC</h3>
+      <div class="row3">
+        <label>Slave ID<input id="mbSlave" type="number" min="0" max="247" value="1"></label>
+        <label>Function<select id="mbFunc"></select></label>
+        <label>Start addr (0-based)<input id="mbAddr" type="number" min="0" max="65535" value="0"></label>
+        <label>Quantity / Value<input id="mbQty" type="number" min="0" max="65535" value="10"></label>
+      </div>
+      <div class="row"><label>Write data hex (FC 15 / 16 only, optional)<input id="mbData" placeholder="e.g. 00 0A 01 02" spellcheck="false"></label></div>
+      <div class="row"><label>Convert reference<input id="mbRef" value="40001" spellcheck="false"></label><button class="btn small" id="mbRefBtn">Convert</button><label>Exception code<input id="mbExc" value="02" maxlength="2" spellcheck="false"></label><button class="btn small" id="mbExcBtn">Decode</button></div>
+      <div id="mbOut" class="out"></div>
+      <button class="btn accent small" data-attach="modbus">Attach Diagnostic Result to Ticket</button>
+    </div>
+    <div class="card">
+      <h3>Wonderware Historian &amp; SQL Optimizer</h3>
+      <div class="row3">
+        <label>Tag name(s) comma-sep<input id="hTags" value="DC_Chiller1_Temp" spellcheck="false"></label>
+        <label>Start (GST)<input id="hStart" type="datetime-local"></label>
+        <label>End (GST)<input id="hEnd" type="datetime-local"></label>
+        <label>Retrieval mode<select id="hMode"><option>Cyclic</option><option>Delta</option><option>Full</option><option>BestFit</option><option>Average</option><option>Minimum</option><option>Maximum</option></select></label>
+        <label>Resolution (ms)<input id="hRes" type="number" value="60000"></label>
+        <label>Row limit<input id="hRows" type="number" value="5000"></label>
+      </div>
+      <button class="btn small" id="hBuildBtn">Build Query</button>
+      <pre id="hSql" class="code"></pre>
+      <h4>Deadband Efficiency Calculator</h4>
+      <div class="row3">
+        <label>Scan rate (ms)<input id="dbScan" type="number" value="1000"></label>
+        <label>Tags<input id="dbTags" type="number" value="5000"></label>
+        <label>Expected change rate (%)<input id="dbChg" type="number" value="8"></label>
+        <label>Bytes / stored value<input id="dbBytes" type="number" value="38"></label>
+      </div>
+      <button class="btn small" id="dbCalcBtn">Calculate</button>
+      <div id="dbOut" class="out"></div>
+      <button class="btn accent small" data-attach="historian">Attach Diagnostic Result to Ticket</button>
+    </div>
+    <div class="card">
+      <h3>InTouch QuickScript &amp; Alarm Flood Analyzer</h3>
+      <label>QuickScript / QuickScript.NET snippet<textarea id="qsCode" rows="6" spellcheck="false">IF Tank1_Level > 80 THEN
+  Pump1_Cmd = 1;
+ENDIF
+Alarm_Count = Alarm_Count + 1
+</textarea></label>
+      <button class="btn small" id="qsCheckBtn">Lint Script</button>
+      <div id="qsOut" class="out"></div>
+      <h4>Alarm Flood Analyzer</h4>
+      <label>Paste alarm log (one per line: <code>timestamp, tag, priority</code>)<textarea id="afLog" rows="5" spellcheck="false"></textarea></label>
+      <div class="row"><button class="btn small" id="afSampleBtn">Load Sample</button><button class="btn small" id="afRunBtn">Analyze</button></div>
+      <div id="afOut" class="out"></div>
+      <button class="btn accent small" data-attach="alarmflood">Attach Diagnostic Result to Ticket</button>
+    </div>
+    <div class="card">
+      <h3>PLC Node Reference</h3>
+      <div class="row"><label>Platform<select id="plcSel"><option value="s7">Siemens S7-1500/1200</option><option value="ab">Allen-Bradley ControlLogix</option><option value="mod">Schneider Modicon M340/M580</option></select></label></div>
+      <div id="plcOut" class="out"></div>
+    </div>
+    <div class="card">
+      <h3>Diagnostic Log Viewer</h3>
+      <div class="row"><label>Type filter<select id="dlType"><option value="">All</option><option>opc</option><option>modbus</option><option>historian</option><option>alarmflood</option></select></label><button class="btn small" id="dlMore">Load more</button></div>
+      <div id="dlList" class="list"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ KB & TRAINING ============ -->
+<section class="view" id="view-kb">
+  <div class="grid2">
+    <div class="card">
+      <div class="card-head"><h3>SOP Knowledge Base</h3><button class="btn accent small" id="kbNew">+ New Document</button></div>
+      <div class="row"><input type="search" id="kbSearch" placeholder="Search title, tags, content…"><select id="kbCat"><option value="">All categories</option><option>Wonderware</option><option>PLC Integration</option><option>SQL / Historian</option><option>SOP</option><option>User Manual</option><option>Design Spec</option></select></div>
+      <div id="kbList" class="list"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>End-User Training Sessions</h3><button class="btn accent small" id="trNew">+ Log Session</button></div>
+      <div id="trList" class="list"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SITES ============ -->
+<section class="view" id="view-sites">
+  <div class="grid2">
+    <div class="card">
+      <div class="card-head"><h3>UAE Client Sites &amp; Topology</h3><button class="btn accent small" id="siteNew">+ New Site</button></div>
+      <div id="siteList" class="list"></div>
+    </div>
+    <div class="card">
+      <h3>Site Survey BOM &amp; Service Hours Estimator</h3>
+      <label>Site<select id="bomSite"></select></label>
+      <div id="bomRows"></div>
+      <button class="btn small" id="bomAdd">+ Add Line</button>
+      <div class="row3">
+        <label>Engineer hours<input id="bomHrs" type="number" value="8" min="0"></label>
+        <label>Rate (AED/hr)<input id="bomRate" type="number" value="350" min="0"></label>
+        <label>Contingency %<input id="bomCont" type="number" value="10" min="0"></label>
+        <label>VAT %<input id="bomVat" type="number" value="5" min="0"></label>
+      </div>
+      <div id="bomOut" class="out"></div>
+      <div class="row"><button class="btn small accent" id="bomSave">Save Estimate to Site</button><button class="btn small" id="bomClear">Clear</button></div>
+    </div>
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-head"><h3>QHSE Audit Log — Annexure-SCT-HR-001</h3><button class="btn accent small" id="qhseNew">+ New Gate Audit</button></div>
+      <div id="qhseList" class="list"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VAULT ============ -->
+<section class="view" id="view-vault">
+  <div class="grid2">
+    <div class="card">
+      <h3>2–3 Year Storage Vault &amp; Telemetry</h3>
+      <div id="vaultQuota"></div>
+      <div class="row"><button class="btn small" id="persistBtn">Lock Persistent Storage</button><span id="persistState" class="hint"></span></div>
+      <h4>Records per Store</h4>
+      <div id="vaultStores"></div>
+    </div>
+    <div class="card">
+      <h3>3-Year Capacity Forecast</h3>
+      <div class="row3">
+        <label>Tickets / day<input id="fcTickets" type="number" value="35"></label>
+        <label>Diagnostics / ticket<input id="fcDiag" type="number" value="4"></label>
+        <label>Avg ticket bytes<input id="fcBytes" type="number" value="2400"></label>
+        <label>Avg diag bytes<input id="fcDBytes" type="number" value="1800"></label>
+      </div>
+      <button class="btn small" id="fcBtn">Forecast</button>
+      <div id="fcOut" class="out"></div>
+    </div>
+    <div class="card">
+      <h3>Cold Compaction &amp; Archive</h3>
+      <div class="row"><label>Archive closed tickets older than (days)<input id="coldDays" type="number" value="180"></label><button class="btn accent small" id="coldBtn">Compact Now</button></div>
+      <div id="coldOut" class="out"></div>
+      <h4>Stress Test</h4>
+      <div class="row"><label>Generate synthetic tickets<input id="synthN" type="number" value="5000" min="1" max="50000"></label><button class="btn small" id="synthBtn">Generate</button><button class="btn small danger" id="synthClear">Remove synthetic</button></div>
+      <div id="synthOut" class="out"></div>
+    </div>
+    <div class="card">
+      <h3>Backup, Restore &amp; Export</h3>
+      <div class="row"><button class="btn small accent" id="expJson">Export Full JSON Snapshot</button><button class="btn small" id="expCsv">Export Tickets CSV</button></div>
+      <label>Restore from JSON snapshot<input type="file" id="impFile" accept="application/json,.json"></label>
+      <div id="bkOut" class="out"></div>
+      <h4>Service Worker Cache</h4>
+      <div id="swInfo" class="out"></div>
+      <div class="row"><button class="btn small" id="swUpdate">Check for Update</button><button class="btn small danger" id="swClear">Clear App Cache</button></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<!-- Drawer -->
+<aside class="drawer" id="drawer" hidden aria-label="Ticket detail"></aside>
+<div class="scrim" id="scrim" hidden></div>
+<!-- Modal -->
+<div class="modal" id="modal" hidden><div class="modal-box" id="modalBox"></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/seed-data.js"></script>
+<script src="js/db.js"></script>
+<script src="js/diagnostics.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

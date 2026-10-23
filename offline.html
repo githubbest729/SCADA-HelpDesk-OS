@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0a192f">
+<title>Offline — SCADA HelpDesk OS</title>
+<style>
+  body{margin:0;background:#0b1120;color:#e2e8f0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;padding:24px}
+  .wrap{max-width:860px;margin:0 auto}
+  h1{color:#06b6d4;margin:0 0 4px}
+  .sub{color:#8da2c0;margin-bottom:18px}
+  .box{background:#111c33;border:1px solid #223155;border-left:4px solid #f59e0b;border-radius:8px;padding:14px 16px;margin-bottom:16px}
+  a.btn{display:inline-block;background:#06b6d4;color:#04202a;font-weight:700;padding:10px 18px;border-radius:6px;text-decoration:none}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{border-bottom:1px solid #223155;padding:6px 8px;text-align:left;font-size:13px}
+  th{color:#8da2c0;text-transform:uppercase;font-size:11px}
+  code{font-family:ui-monospace,Consolas,monospace;color:#06b6d4}
+  h2{font-size:15px;color:#06b6d4;text-transform:uppercase;letter-spacing:.05em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>You are offline</h1>
+  <div class="sub">SCADA HelpDesk OS — Al Gurg Automation &amp; Controls · Dubai, U.A.E.</div>
+  <div class="box">
+    SCADA HelpDesk OS runs 100% offline. All tickets, diagnostics, SOPs, site data and QHSE records live in your device's IndexedDB, so no data is lost without a network connection.
+  </div>
+  <p><a class="btn" href="./index.html">Launch cached application</a></p>
+
+  <h2>Emergency quick reference</h2>
+  <table>
+    <tr><th>OPC quality</th><th>Meaning</th></tr>
+    <tr><td><code>0x00C0</code></td><td>Good</td></tr>
+    <tr><td><code>0x0000</code></td><td>Bad — non-specific</td></tr>
+    <tr><td><code>0x0018</code></td><td>Bad — device / comm failure</td></tr>
+    <tr><td><code>0x0014</code></td><td>Bad — last known value</td></tr>
+  </table>
+  <table>
+    <tr><th>Modbus exception</th><th>Meaning</th></tr>
+    <tr><td><code>01</code></td><td>Illegal function</td></tr>
+    <tr><td><code>02</code></td><td>Illegal data address</td></tr>
+    <tr><td><code>03</code></td><td>Illegal data value</td></tr>
+    <tr><td><code>04</code></td><td>Slave device failure</td></tr>
+    <tr><td><code>06</code></td><td>Slave device busy</td></tr>
+    <tr><td><code>0A / 0B</code></td><td>Gateway path unavailable / target failed to respond</td></tr>
+  </table>
+  <table>
+    <tr><th>Wonderware</th><th>First checks</th></tr>
+    <tr><td>InTouch tag shows <code>?</code> / bad quality</td><td>IOServer/DAServer topic status, device IP reachability, item syntax</td></tr>
+    <tr><td>Galaxy object in Warning/Error</td><td>Platform and engine deploy state, Bootstrap and aaEngine services</td></tr>
+    <tr><td>Historian not storing</td><td>Storage node disk space, retrieval/Insert service, SQL Server availability</td></tr>
+  </table>
+</div>
+</body>
+</html>

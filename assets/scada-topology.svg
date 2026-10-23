@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" font-family="Arial,sans-serif">
+  <rect width="720" height="360" fill="#0b1120"/>
+  <text x="20" y="28" fill="#06b6d4" font-size="16" font-weight="700">Typical Al Gurg Client SCADA Topology</text>
+  <g stroke="#06b6d4" stroke-width="2" fill="none">
+    <path d="M360 110V150M360 150H150V190M360 150H360V190M360 150H570V190"/>
+    <path d="M150 250V290M360 250V290M570 250V290"/>
+  </g>
+  <g fill="#111c33" stroke="#06b6d4" stroke-width="2">
+    <rect x="260" y="60" width="200" height="50" rx="8"/>
+    <rect x="50" y="190" width="200" height="60" rx="8"/>
+    <rect x="260" y="190" width="200" height="60" rx="8"/>
+    <rect x="470" y="190" width="200" height="60" rx="8"/>
+    <rect x="50" y="290" width="200" height="50" rx="8"/>
+    <rect x="260" y="290" width="200" height="50" rx="8"/>
+    <rect x="470" y="290" width="200" height="50" rx="8"/>
+  </g>
+  <g fill="#e2e8f0" font-size="13" text-anchor="middle">
+    <text x="360" y="90">Wonderware Galaxy / Historian</text>
+    <text x="150" y="226">DAServer / OPC UA Gateway</text>
+    <text x="360" y="226">InTouch HMI Clients</text>
+    <text x="570" y="226">MS SQL Server Runtime DB</text>
+    <text x="150" y="320">Siemens S7 PLC</text>
+    <text x="360" y="320">ControlLogix PLC</text>
+    <text x="570" y="320">Modicon / Modbus RTU RTU</text>
+  </g>
+</svg>
