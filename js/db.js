@@ -2,7 +2,7 @@
 (function (global) {
   'use strict';
   const DB_NAME = 'SCADA_HelpDesk_OS_DB';
-  const DB_VERSION = 2;
+  const DB_VERSION = 3;
 
   const STORES = {
     tickets: { keyPath: 'id', indexes: [
@@ -14,12 +14,8 @@
       ['ticketId', 'ticketId'], ['timestamp', 'timestamp'], ['diagnosticType', 'diagnosticType'],
       ['type_timestamp', ['diagnosticType', 'timestamp']]
     ] },
-    knowledge_base: { keyPath: 'id', indexes: [['category', 'category'], ['tags', 'tags', { multiEntry: true }], ['updatedAt', 'updatedAt']] },
-    training_sessions: { keyPath: 'id', indexes: [['date', 'date'], ['module', 'module']] },
-    sites_bom: { keyPath: 'id', indexes: [['name', 'name'], ['sector', 'sector']] },
-    qhse_audits: { keyPath: 'id', indexes: [['ticketId', 'ticketId'], ['timestamp', 'timestamp']] },
     cold_archive: { keyPath: 'id', indexes: [['ticketNumber', 'ticketNumber'], ['archivedAt', 'archivedAt'], ['siteName', 'siteName']] },
-    meta: { keyPath: 'key', indexes: [] }
+    settings: { keyPath: 'key', indexes: [] }
   };
 
   let dbPromise = null;
@@ -31,7 +27,7 @@
       req.onupgradeneeded = (ev) => {
         const db = req.result;
         const tx = req.transaction;
-        // Create missing stores / indexes (v1 -> v2 and fresh install both handled idempotently).
+        // Create missing stores / indexes (idempotent for fresh installs and upgrades).
         Object.keys(STORES).forEach((name) => {
           const def = STORES[name];
           const store = db.objectStoreNames.contains(name)
@@ -40,6 +36,29 @@
           def.indexes.forEach((ix) => {
             if (!store.indexNames.contains(ix[0])) store.createIndex(ix[0], ix[1], ix[2] || {});
           });
+        });
+        // Migration from builds before v3: keep settings from the old 'meta' store, simplify ticket statuses,
+        // and drop stores that the streamlined app no longer uses.
+        if (ev.oldVersion > 0 && ev.oldVersion < 3) {
+          if (db.objectStoreNames.contains('meta')) {
+            const old = tx.objectStore('meta').getAll();
+            old.onsuccess = () => {
+              old.result.forEach((r) => tx.objectStore('settings').put(r));
+              db.deleteObjectStore('meta');
+            };
+          }
+          const cur = tx.objectStore('tickets').openCursor();
+          cur.onsuccess = () => {
+            const c = cur.result;
+            if (!c) return;
+            const t = c.value;
+            const map = { 'Pending Client': 'In Progress', 'Escalated': 'In Progress', 'Closed': 'Resolved' };
+            if (map[t.status]) { t.status = map[t.status]; c.update(t); }
+            c.continue();
+          };
+        }
+        Array.from(db.objectStoreNames).forEach((n) => {
+          if (!STORES[n] && n !== 'meta') db.deleteObjectStore(n);
         });
       };
       req.onsuccess = () => {
@@ -158,10 +177,10 @@
   }
 
   async function getMeta(key, dflt) {
-    const r = await get('meta', key);
+    const r = await get('settings', key);
     return r ? r.value : dflt;
   }
-  const setMeta = (key, value) => put('meta', { key, value });
+  const setMeta = (key, value) => put('settings', { key, value });
 
   function uid(prefix) {
     return (prefix || 'id') + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -185,7 +204,7 @@
   async function storesSummary() {
     const out = {};
     for (const name of Object.keys(STORES)) {
-      if (name === 'meta') continue;
+      if (name === 'settings') continue;
       out[name] = await count(name);
     }
     return out;
@@ -200,7 +219,7 @@
     const candidates = [];
     await forEachChunk('tickets', 500, async (rows) => {
       rows.forEach((r) => {
-        if (r.status === 'Closed' && r.updatedAt < cutoff) candidates.push(r);
+        if (r.status === 'Resolved' && (r.resolvedAt || r.updatedAt) < cutoff) candidates.push(r);
       });
     });
     for (let i = 0; i < candidates.length; i += 200) {
@@ -211,7 +230,7 @@
         bytesBefore += json.length;
         const blob = await compressString(json);
         bytesAfter += blob.size;
-        packed.push({ id: r.id, ticketNumber: r.ticketNumber, siteName: r.siteName, title: r.title, closedAt: r.updatedAt, archivedAt: Date.now(), blob });
+        packed.push({ id: r.id, ticketNumber: r.ticketNumber, siteName: r.siteName, title: r.title, priority: r.priority, protocol: r.protocol, closedAt: r.resolvedAt || r.updatedAt, archivedAt: Date.now(), searchText: (r.ticketNumber + ' ' + r.title + ' ' + r.siteName + ' ' + (r.reporter || '') + ' ' + (r.description || '')).toLowerCase(), blob });
       }
       await tx(['cold_archive', 'tickets'], 'readwrite', (t) => {
         packed.forEach((p) => t.objectStore('cold_archive').put(p));
@@ -295,9 +314,10 @@
     const data = JSON.parse(text);
     if (!data || data.app !== 'SCADA_HelpDesk_OS' || !data.stores) throw new Error('Not a SCADA HelpDesk OS snapshot');
     let total = 0;
-    for (const name of Object.keys(data.stores)) {
+    for (const srcName of Object.keys(data.stores)) {
+      const name = srcName === 'meta' ? 'settings' : srcName;
       if (!STORES[name]) continue;
-      let rows = data.stores[name];
+      let rows = data.stores[srcName];
       if (name === 'cold_archive') {
         rows = rows.map((r) => (r.blob && r.blob.__b64) ? Object.assign({}, r, { blob: b64ToBlob(r.blob.__b64, r.blob.type) }) : r);
       }
@@ -312,7 +332,7 @@
   }
 
   function ticketsToCsv(rows) {
-    const cols = ['ticketNumber', 'title', 'status', 'priority', 'siteName', 'protocol', 'reporter', 'assignee', 'createdAt', 'updatedAt', 'resolvedAt', 'rootCause'];
+    const cols = ['ticketNumber', 'title', 'status', 'priority', 'siteName', 'protocol', 'reporter', 'assignee', 'createdAt', 'updatedAt', 'resolvedAt', 'resolutionNote'];
     const esc = (v) => {
       if (v === undefined || v === null) return '';
       if (typeof v === 'number' && v > 1e11) v = new Date(v).toISOString();

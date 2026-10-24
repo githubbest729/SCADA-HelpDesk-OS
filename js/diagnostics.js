@@ -379,11 +379,58 @@
     return '<b>' + esc(p.name) + '</b>\nPorts: ' + esc(p.port) + '\nAddressing: ' + esc(p.addressing) + '\n\nQuick checks:\n' + p.checks.map((c, i) => (i + 1) + '. ' + esc(c)).join('\n');
   }
 
+
+  /* ================= Plain-English presets (v2 beginner mode) ================= */
+  const PRESETS = {
+    opc: {
+      good:   { label: '0x00C0 — Good', code: '0x00C0', level: 'good', meaning: 'The value is healthy and up to date. No problem with this tag.', steps: ['Nothing to fix for this tag.', 'If the operator still sees a problem, check the next tag in the same group.'] },
+      comm:   { label: '0x0018 — Comm Failure', code: '0x0018', level: 'bad', meaning: 'The OPC server lost contact with the PLC / device, so the values you see are old.', steps: ['Ping the PLC or gateway from the HMI / OPC server.', 'Check the topic (connection) status in the DAServer / OPC server.', 'Check the cable, switch port lights and any recent network change.', 'Check for a duplicate IP address on the network.', 'Confirm the PLC is in RUN mode and its communication module has no fault.', 'After it recovers, confirm the tag shows 0x00C0 (Good).'] },
+      bad:    { label: '0x0000 — Bad / Configuration Error', code: '0x0000', level: 'bad', meaning: 'The server cannot read this item. Usually the item name or address is wrong, or the group / item is not active.', steps: ['Check the spelling of the item / tag path.', 'Compare the address with the current PLC program (it may have changed after a download).', 'Check that the OPC group and item are Active.', 'Check the OPC server log for the first error message.'] },
+      dcom:   { label: '0x80070005 — DCOM Access Denied', code: '0x80070005', level: 'bad', meaning: 'Windows security is blocking the HMI from talking to the OPC server. This often happens after a Windows update or server rebuild.', steps: ['Check both computers can reach each other by name (ping hostname).', 'Open dcomcnfg and add the OPC client user to Launch and Access permissions (local + remote).', 'Set the OPC server authentication level to match the client.', 'Make sure the firewall allows TCP 135 and the DCOM port range.', 'Check the PCs have the same time and are in the same domain / trust.', 'Test with a simple OPC client browse before returning to the HMI.'] },
+      uacert: { label: 'UA Certificate Rejected', code: 'BadSecurityChecksFailed', level: 'bad', meaning: 'The OPC UA client and server do not trust each other\'s security certificate.', steps: ['Open the server\'s rejected-certificates folder / list.', 'Move the client certificate to the Trusted list on the server.', 'Import the server certificate into the client trusted store.', 'Check the PC clock is correct (certificates have dates).', 'Check the security policy / mode matches on both sides.', 'Reconnect and confirm status Good.'] }
+    },
+    modbus: {
+      exc01:   { label: 'Exception 01 — Illegal Function', level: 'bad', meaning: 'The device does not support the type of request that was sent (the function code).', steps: ['Check the device manual for supported function codes.', 'Use FC03 for holding registers and FC04 for input registers.', 'Do not use write functions on read-only devices.'] },
+      exc02:   { label: 'Exception 02 — Illegal Data Address', level: 'bad', meaning: 'The device does not have the register that was asked for. Most often the address is off by one, or too many registers were requested.', steps: ['Check whether the manual uses 0-based or 1-based addresses (40001 is offset 0 on the wire).', 'Try the address minus 1 (or plus 1).', 'Reduce the quantity and read in smaller blocks.', 'Compare with the register map after any firmware change.', 'Use the Register Converter below to build and check the frame.'] },
+      exc03:   { label: 'Exception 03 — Illegal Data Value', level: 'bad', meaning: 'The quantity or value in the request is outside what the device allows.', steps: ['Read no more than 125 registers (FC03/04) or 2000 bits (FC01/02) per request.', 'Check the value is inside the allowed range.', 'Check the byte count on write-multiple requests.'] },
+      timeout: { label: 'Gateway Timeout / No Response', level: 'bad', meaning: 'The master sent a request but the device never answered.', steps: ['Check the slave ID (address) matches the device setting.', 'Check baud rate, parity and stop bits on both ends (RTU).', 'Check A/B wires are not swapped, and a 120 ohm terminator is at each end.', 'Check the device is powered and not in a fault state.', 'For TCP: ping the device and check port 502 is open.', 'Increase the response timeout slightly and reduce the poll rate.'] }
+    },
+    wonderware: {
+      flood:     { label: 'Alarm Flood on Feeder', level: 'bad', meaning: 'Too many alarms arrived at once (more than 10 in 10 minutes). Operators cannot see what matters. Usually one event (such as a relay trip) or one chattering tag causes it.', steps: ['Paste the alarm log below and press Analyze to find the top tags.', 'Find the first alarm in the burst: that is usually the cause.', 'Ask the operator before suppressing any alarm.', 'Add an on-delay or deadband to chattering tags.', 'Review alarm priorities after the event.'] },
+      historian: { label: 'Historian Not Logging Tags', level: 'bad', meaning: 'Live values are fine but history is not being stored (a flat line or gap on the trend).', steps: ['Check free disk space on the history drive.', 'Check the Historian services are running (storage / retrieval).', 'Check SQL Server is running and not blocked.', 'Check the tags are enabled for storage and the deadband is not too wide.', 'Build the query below for the last hour to see where the data stops.'] },
+      script:    { label: 'QuickScript Syntax Check', level: 'warn', meaning: 'An InTouch / QuickScript line has a mistake, so the script does not run correctly.', steps: ['Paste the script below and press Check Syntax.', 'Fix IF without THEN, missing ENDIF, and "=" used instead of "==".', 'Guard every division so the divisor can never be zero.', 'Add LogMessage() lines to see how far the script runs.'] },
+      slow:      { label: 'Slow Graphic Call-Up', level: 'warn', meaning: 'A screen takes a long time to open. Usually there is too much script or too many animations on that window.', steps: ['Check the window scripts (On Show) for heavy logic and move it to a server script.', 'Remove unused graphics and large bitmaps.', 'Check network speed to the tag server.', 'Test the same screen on another client to compare.'] }
+    },
+    plc: {
+      s7:  { label: 'Siemens S7-1500 / S7-1200', port: 'TCP 102 (ISO-on-TCP) · OPC UA 4840 · Web 80/443', leds: ['RUN green: running normally', 'STOP yellow: CPU stopped', 'ERROR red flashing: fault — read the diagnostic buffer', 'MAINT yellow: maintenance needed', 'LINK green / ACT flashing: network port is alive'], steps: ['Ping the PLC from the HMI / server.', 'Check for a duplicate IP address or a network loop.', 'Check the CPU is in RUN and read the diagnostic buffer.', 'Check the rack / slot in the connection (0/1 for S7-1200/1500).', 'Check the PUT/GET setting only if the driver needs it and the client allows it.', 'Check the driver / topic shows Connected.'] },
+      ab:  { label: 'Allen-Bradley ControlLogix / CompactLogix', port: 'EtherNet/IP TCP 44818 · I/O UDP 2222', leds: ['RUN green: running', 'FORCE amber: forces are active — tell the operator', 'OK red flashing: minor fault; solid red: major fault', 'NS/MS green: network and module healthy'], steps: ['Ping the controller or Ethernet module.', 'Check the mode switch (RUN / REM RUN) and any fault in Studio 5000.', 'Check the path (IP + backplane + slot) in the topic.', 'Check the tag name exists in the controller project.', 'Check the Ethernet module connection count is not full.', 'Check the topic shows Connected.'] },
+      mod: { label: 'Schneider Modicon M340 / M580', port: 'Modbus TCP 502 · OPC UA 4840 (M580)', leds: ['RUN green: running', 'ERR red: fault', 'I/O red: I/O fault', 'LINK / ACT on the Ethernet port: network alive'], steps: ['Ping the PLC.', 'Check the Modbus server is enabled on the Ethernet module.', 'Check the number of simultaneous connections allowed.', 'Compare the %MW index with the register map used by the SCADA.', 'Check the unit ID (255 or 0 for direct TCP).', 'Read one register to confirm before closing.'] }
+    }
+  };
+
+  /** Build a Modbus request from a register like 40001 (function is chosen from the prefix). */
+  function modbusFromRegister(slave, reg, qty) {
+    const s = String(reg || '').trim();
+    if (!/^\d{1,6}$/.test(s)) return { ok: false, error: 'Enter the register number, for example 40001 or 30010.' };
+    const n = +s;
+    let func = 3, off = n;
+    const six = s.length === 6, div = six ? 100000 : 10000;
+    if (s.length >= 5) {
+      const prefix = Math.floor(n / div), rem = n % div;
+      const map = { 0: 1, 1: 2, 3: 4, 4: 3 };
+      if (map[prefix] && rem >= 1) { func = map[prefix]; off = rem - 1; }
+    }
+    const r = modbusBuild({ slave, func, addr: off, qty });
+    if (!r.ok) return r;
+    r.tableName = { 1: 'Coils', 2: 'Discrete inputs', 3: 'Holding registers', 4: 'Input registers' }[func];
+    return r;
+  }
+
   global.DIAG = {
     esc, hex, crc16, lrc, MB_FUNCS, MB_EXC,
     opcDecode, opcRender, opcEndpointCheck,
     modbusBuild, modbusRefConvert, modbusException, parseHexBytes,
     historianQuery, deadband, quickScriptLint, alarmFlood, alarmSample, parseAlarmLog,
-    PLC, plcRender
+    PLC, plcRender, PRESETS, modbusFromRegister
   };
 })(window);

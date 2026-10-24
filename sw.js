@@ -1,10 +1,10 @@
 /* SCADA HelpDesk OS — Service Worker */
-const VERSION = 'scada-helpdesk-os-v1.0.0';
+const VERSION = 'scada-helpdesk-os-v2.0.0';
 const PRECACHE = [
   './', './index.html', './offline.html', './manifest.webmanifest', './manifest.json',
   './favicon.ico', './favicon.svg', './apple-touch-icon.png', './robots.txt',
   './css/styles.css',
-  './js/app.js', './js/db.js', './js/diagnostics.js', './js/seed-data.js',
+  './js/app.js', './js/db.js', './js/diagnostics.js', './js/guide-tour.js', './js/seed-data.js',
   './assets/scada-topology.svg',
   './icons/icon-72.png', './icons/icon-96.png', './icons/icon-128.png', './icons/icon-144.png',
   './icons/icon-152.png', './icons/icon-192.png', './icons/icon-384.png', './icons/icon-512.png',
