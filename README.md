@@ -3,7 +3,7 @@
 <img src="favicon.svg" alt="SCADA HelpDesk OS Logo" width="88" height="88" />
 
 # SCADA HelpDesk OS
-### Al Gurg Automation & Controls — Dubai, U.A.E.
+### Automation & Controls — Dubai, U.A.E.
 
 **A zero-dependency, offline-first Progressive Web App (PWA) for industrial SCADA/PLC technical support.**  
 *Log plant calls, diagnose OPC/Modbus/Wonderware issues in plain English, attach telemetry to tickets, and track SLA resolution.*
