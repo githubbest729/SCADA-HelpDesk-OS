@@ -1,4 +1,4 @@
-# SCADA HelpDesk OS — Al Gurg Automation & Controls
+# SCADA HelpDesk OS —  Automation & Controls
 
 A beginner-friendly, offline-first Progressive Web App for end-user SCADA support (Dubai, U.A.E.): log a plant call, run a plain-English remote diagnostic, attach the fix and resolve the ticket. No server, no CDN, no account.
 
